@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黃楷銘戰力分析</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            dark: '#000000',
+                            card: 'rgba(20, 25, 40, 0.85)', /* 卡片底色深一點，對比更好 */
+                            border: 'rgba(34, 211, 238, 0.3)',
+                            glow: '#22d3ee',
+                            text: '#e2e8f0'
+                        }
+                    },
+                    fontFamily: {
+                        mono: ['Share Tech Mono', 'monospace'],
+                        sans: ['Noto Sans TC', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700;900&family=Share+Tech+Mono&display=swap');
+        
+        body { 
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #000;
+            color: #e2e8f0;
+            overflow-x: hidden; /* 防止背景動畫造成捲軸 */
+        }
+
+        /* Matrix 背景畫布 */
+        #matrix-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            pointer-events: none; /* 讓點擊可以穿透背景 */
+        }
+
+        /* 內容容器 */
+        .content-container {
+            position: relative;
+            z-index: 10;
+        }
+
+        /* 霓虹卡片樣式 */
+        .cyber-card {
+            background: var(--tw-colors-cyber-card);
+            backdrop-filter: blur(8px);
+            border: 1px solid var(--tw-colors-cyber-border);
+            box-shadow: 0 0 10px rgba(34, 211, 238, 0.1);
+            transition: all 0.3s ease;
+        }
+        .cyber-card:hover {
+            border-color: rgba(34, 211, 238, 0.8);
+            box-shadow: 0 0 20px rgba(34, 211, 238, 0.3);
+        }
+
+        /* 特殊字體與光暈 */
+        .tech-font { font-family: 'Share Tech Mono', monospace; }
+        .text-glow { text-shadow: 0 0 8px currentColor; }
+
+        /* 自定義 Checkbox */
+        .cyber-checkbox {
+            appearance: none;
+            background-color: rgba(0, 0, 0, 0.5);
+            width: 1.25em;
+            height: 1.25em;
+            border: 2px solid #475569;
+            border-radius: 4px;
+            display: grid;
+            place-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .cyber-checkbox::before {
+            content: "";
+            width: 0.75em;
+            height: 0.75em;
+            transform: scale(0);
+            transition: 0.1s transform ease-in-out;
+            box-shadow: inset 1em 1em currentColor; /* 使用當前文字顏色填充 */
+            transform-origin: center;
+            clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+        }
+        .cyber-checkbox:checked {
+            border-color: currentColor;
+            box-shadow: 0 0 8px currentColor;
+        }
+        .cyber-checkbox:checked::before {
+            transform: scale(1);
+        }
+
+        /* 自定義 Select 下拉選單 */
+        select.cyber-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%2322d3ee' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+            padding-right: 2.5rem;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        /* 隱藏捲軸但可捲動 */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+    <canvas id="matrix-bg"></canvas>
+
+    <div x-data="studyTracker()" x-init="initAll()" class="content-container max-w-5xl mx-auto space-y-8 pb-20">
+        
+        <div class="flex flex-col items-center justify-center pt-4">
+            <h1 class="text-4xl md:text-5xl font-black mb-6 tracking-wider text-cyan-400 text-glow uppercase tech-font text-center">
+                黃楷銘戰力分析
+            </h1>
+            
+            <div class="relative w-full max-w-md h-64 md:h-80 cyber-card rounded-full p-4 flex items-center justify-center bg-black/40">
+                <canvas id="progressRadar"></canvas>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <template x-for="(subject, index) in subjects" :key="index">
+                <div class="cyber-card rounded-xl overflow-hidden flex flex-col border-t-2"
+                     :class="`border-${subject.colorName}-500`">
+                    
+                    <div class="p-5 bg-slate-900/80 border-b border-gray-800">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-2xl font-bold text-white tracking-wide" x-text="subject.name"></h3>
+                            <span class="text-sm font-bold px-2 py-0.5 rounded border text-cyan-300 bg-cyan-950/50 border-cyan-800 tech-font"
+                                  x-text="getGradeLabel(subject.currentViewGrade)"></span>
+                        </div>
+
+                        <div class="mb-4">
+                            <select x-model="subject.currentViewGrade" 
+                                    class="cyber-select w-full bg-slate-800 text-slate-200 border border-slate-600 rounded-lg py-2 pl-3 text-sm font-medium focus:outline-none focus:border-cyan-400 transition-colors">
+                                <option value="3">國小三年級 (LV.3)</option>
+                                <option value="4">國小四年級 (LV.4)</option>
+                                <option value="5">國小五年級 (LV.5)</option>
+                                <option value="6">國小六年級 (LV.6)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-400 mb-1 font-mono">
+                                <span>LAYER SYNC</span>
+                                <span :class="`text-${subject.colorName}-400`" x-text="calculateGradeProgress(subject) + '%'"></span>
+                            </div>
+                            <div class="w-full bg-slate-950 rounded-full h-2 overflow-hidden border border-slate-700">
+                                <div class="h-full rounded-full transition-all duration-500 relative"
+                                     :class="`bg-${subject.colorName}-500`"
+                                     :style="`width: ${calculateGradeProgress(subject)}%; box-shadow: 0 0 10px var(--tw-colors-${subject.colorName}-500);`">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="p-5 bg-slate-900/40 flex-grow space-y-3">
+                        <template x-for="(label, idx) in ['上學期-1', '上學期-2', '下學期-1', '下學期-2']">
+                            <label class="flex items-center p-2 rounded-lg cursor-pointer hover:bg-slate-800/50 transition-colors group">
+                                <input type="checkbox" 
+                                       class="cyber-checkbox"
+                                       :class="`text-${subject.colorName}-400`"
+                                       x-model="subject.records[subject.currentViewGrade][idx]"
+                                       @change="updateChart()">
+                                
+                                <span class="ml-3 font-bold text-slate-400 group-hover:text-white transition-colors"
+                                      :class="subject.records[subject.currentViewGrade][idx] ? `text-${subject.colorName}-300` : ''">
+                                    <span x-text="getCheckLabel(subject.currentViewGrade, idx)"></span>
+                                    <span class="text-xs font-normal opacity-50 ml-1" x-text="'(' + label + ')'"></span>
+                                </span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. 全域變數：圖表實體 (放在 Alpine 之外以確保穩定) ---
+        let radarChart = null;
+
+        // --- 2. Alpine.js 資料與邏輯 ---
+        function studyTracker() {
+            return {
+                subjects: [
+                    { 
+                        name: '國語', 
+                        currentViewGrade: 3, 
+                        colorName: 'red', // Tailwind 顏色
+                        // 資料結構：{ 年級: [上1, 上2, 下1, 下2] }
+                        records: { 3: [true,true,true,true], 4: [true,false,false,false], 5: [false,false,false,false], 6: [false,false,false,false] } 
+                    },
+                    { 
+                        name: '數學', 
+                        currentViewGrade: 5, 
+                        colorName: 'blue', 
+                        records: { 3: [true,true,true,true], 4: [true,true,true,true], 5: [true,false,false,false], 6: [false,false,false,false] } 
+                    },
+                    { 
+                        name: '英語', 
+                        currentViewGrade: 3, 
+                        colorName: 'yellow', 
+                        records: { 3: [true,true,false,false], 4: [false,false,false,false], 5: [false,false,false,false], 6: [false,false,false,false] } 
+                    },
+                    { 
+                        name: '社會', 
+                        currentViewGrade: 3, 
+                        colorName: 'purple', 
+                        records: { 3: [false,false,false,false], 4: [false,false,false,false], 5: [false,false,false,false], 6: [false,false,false,false] } 
+                    },
+                    { 
+                        name: '自然', 
+                        currentViewGrade: 3, 
+                        colorName: 'green', 
+                        records: { 3: [false,false,false,false], 4: [false,false,false,false], 5: [false,false,false,false], 6: [false,false,false,false] } 
+                    }
+                ],
+
+                // 初始化函數
+                initAll() {
+                    this.initChart();
+                    this.initMatrixRain();
+                },
+
+                // 計算單一年級進度 (0~100)
+                calculateGradeProgress(subject) {
+                    let data = subject.records[subject.currentViewGrade];
+                    let count = data.filter(Boolean).length;
+                    return (count / 4) * 100;
+                },
+
+                // 計算總進度 (3~6年級, 共16個點)
+                calculateTotalProgress(subject) {
+                    let total = 0;
+                    [3, 4, 5, 6].forEach(g => {
+                        total += subject.records[g].filter(Boolean).length;
+                    });
+                    return Math.round((total / 16) * 100);
+                },
+
+                // 文字轉換輔助
+                getGradeLabel(grade) { return {3:'三年級', 4:'四年級', 5:'五年級', 6:'六年級'}[grade]; },
+                getCheckLabel(grade, index) {
+                    const gText = {3:'三',4:'四',5:'五',6:'六'}[grade];
+                    const sem = index < 2 ? '上' : '下';
+                    const num = (index % 2) + 1; 
+                    return `${gText}${sem}${num}`;
+                },
+
+                // 更新圖表 (核心邏輯)
+                updateChart() {
+                    if (radarChart) {
+                        // 重新計算所有科目的總進度
+                        const newData = this.subjects.map(s => this.calculateTotalProgress(s));
+                        radarChart.data.datasets[0].data = newData;
+                        radarChart.update();
+                    }
+                },
+
+                // 初始化 Chart.js
+                initChart() {
+                    const ctx = document.getElementById('progressRadar').getContext('2d');
+                    
+                    // 設定全域字型
+                    Chart.defaults.font.family = "'Share Tech Mono', 'Noto Sans TC', sans-serif";
+                    Chart.defaults.color = '#94a3b8';
+
+                    radarChart = new Chart(ctx, {
+                        type: 'radar',
+                        data: {
+                            labels: ['國語', '數學', '英語', '社會', '自然'],
+                            datasets: [{
+                                label: '戰力指數',
+                                data: this.subjects.map(s => this.calculateTotalProgress(s)),
+                                backgroundColor: 'rgba(34, 211, 238, 0.2)', // 青色半透明
+                                borderColor: '#22d3ee', // 青色實線
+                                borderWidth: 3,
+                                pointBackgroundColor: '#fff',
+                                pointBorderColor: '#22d3ee',
+                                pointHoverBackgroundColor: '#22d3ee',
+                                pointHoverBorderColor: '#fff',
+                                pointRadius: 5,
+                                pointHoverRadius: 8
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            scales: {
+                                r: {
+                                    angleLines: { color: 'rgba(34, 211, 238, 0.2)' },
+                                    grid: { color: 'rgba(34, 211, 238, 0.2)' }, //網格線
+                                    pointLabels: {
+                                        color: '#22d3ee',
+                                        font: { size: 14, weight: 'bold' }
+                                    },
+                                    suggestedMin: 0,
+                                    suggestedMax: 100,
+                                    ticks: { display: false, stepSize: 25 } // 隱藏軸上數字
+                                }
+                            },
+                            plugins: {
+                                legend: { display: false },
+                                tooltip: {
+                                    backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                                    borderColor: '#22d3ee',
+                                    borderWidth: 1,
+                                    titleColor: '#22d3ee',
+                                    callbacks: {
+                                        label: function(context) {
+                                            return '同步率: ' + context.raw + '%';
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    });
+                },
+
+                // 初始化 Matrix 背景動畫
+                initMatrixRain() {
+                    const canvas = document.getElementById('matrix-bg');
+                    const ctx = canvas.getContext('2d');
+
+                    const resize = () => {
+                        canvas.width = window.innerWidth;
+                        canvas.height = window.innerHeight;
+                    };
+                    window.addEventListener('resize', resize);
+                    resize();
+
+                    const katakana = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ黄楷銘戰力分析';
+                    const letters = katakana.split('');
+                    const fontSize = 16;
+                    const columns = canvas.width / fontSize;
+                    const drops = Array(Math.ceil(columns)).fill(1);
+
+                    const draw = () => {
+                        // 畫半透明黑底造成殘影
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                        ctx.fillStyle = '#0F0'; // 經典綠色，或者改成 '#22d3ee' (青色)
+                        ctx.font = fontSize + 'px monospace';
+
+                        for (let i = 0; i < drops.length; i++) {
+                            const text = letters[Math.floor(Math.random() * letters.length)];
+                            // 隨機顏色變換：主要是青色，偶爾白色
+                            ctx.fillStyle = Math.random() > 0.95 ? '#FFF' : '#22d3ee';
+                            
+                            ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+
+                            if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                                drops[i] = 0;
+                            }
+                            drops[i]++;
+                        }
+                    };
+                    setInterval(draw, 50);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

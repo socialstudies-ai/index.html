@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>13路圍棋 - 自我對弈版</title>
+    <style>
+        body {
+            font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
+            background-color: #2c3e50;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { margin-bottom: 5px; }
+        .controls {
+            margin-bottom: 15px;
+            background: #34495e;
+            padding: 10px 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            margin: 0 5px;
+            transition: 0.2s;
+            font-weight: bold;
+        }
+        button:hover { opacity: 0.9; transform: translateY(-2px); }
+        button:active { transform: translateY(0); }
+        
+        .btn-hint { background-color: #f1c40f; color: #2c3e50; }
+        .btn-reset { background-color: #e74c3c; color: #fff; }
+
+        #board-container {
+            position: relative;
+            box-shadow: 10px 10px 30px rgba(0,0,0,0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            border: 5px solid #5e4028; /* 木框感 */
+        }
+        canvas {
+            background-color: #DCB35C;
+            cursor: pointer;
+            display: block;
+        }
+        #status { 
+            font-size: 1.5em; 
+            margin-bottom: 15px; 
+            color: #ecf0f1;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+        }
+        .turn-indicator {
+            display: inline-block;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            margin-right: 10px;
+            border: 1px solid #ccc;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>圍棋 13x13 (自我對弈)</h1>
+    
+    <div id="status">
+        <span class="turn-indicator" style="background-color: black;"></span>
+        輪到：黑棋
+    </div>
+
+    <div class="controls">
+        <button id="btnHint" class="btn-hint" onclick="showHint()">💡 給我建議</button>
+        <button id="btnReset" class="btn-reset" onclick="resetGame()">🔄 重新開始</button>
+    </div>
+
+    <div id="board-container">
+        <canvas id="goBoard" width="540" height="540"></canvas>
+    </div>
+
+    <script>
+        // --- 遊戲參數 ---
+        const BOARD_SIZE = 13;
+        const CELL_SIZE = 40;
+        const MARGIN = 30;
+        const CANVAS_SIZE = MARGIN * 2 + CELL_SIZE * (BOARD_SIZE - 1);
+        
+        // --- DOM 元素 ---
+        const canvas = document.getElementById('goBoard');
+        const ctx = canvas.getContext('2d');
+        const statusEl = document.getElementById('status');
+        
+        // --- 遊戲變數 ---
+        let board = []; 
+        let currentPlayer = 1; // 1:黑, 2:白
+        let lastMove = null;
+        let hintMove = null;
+
+        canvas.width = CANVAS_SIZE;
+        canvas.height = CANVAS_SIZE;
+
+        // --- 初始化與重置 ---
+        function initBoard() {
+            board = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+            currentPlayer = 1;
+            lastMove = null;
+            hintMove = null;
+            updateStatus();
+            drawBoard();
+        }
+
+        function resetGame() {
+            if(confirm("確定要清空棋盤重新開始嗎？")) {
+                initBoard();
+            }
+        }
+
+        function updateStatus() {
+            const colorName = currentPlayer === 1 ? "黑棋" : "白棋";
+            const colorCode = currentPlayer === 1 ? "black" : "white";
+            statusEl.innerHTML = `
+                <span class="turn-indicator" style="background-color: ${colorCode};"></span>
+                輪到：${colorName}
+            `;
+        }
+
+        // --- 繪圖邏輯 ---
+        function drawBoard() {
+            // 背景
+            ctx.fillStyle = "#DCB35C";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // 格線
+            ctx.beginPath();
+            ctx.strokeStyle = "#000";
+            ctx.lineWidth = 1;
+            for (let i = 0; i < BOARD_SIZE; i++) {
+                ctx.moveTo(MARGIN, MARGIN + i * CELL_SIZE);
+                ctx.lineTo(MARGIN + (BOARD_SIZE - 1) * CELL_SIZE, MARGIN + i * CELL_SIZE);
+                ctx.moveTo(MARGIN + i * CELL_SIZE, MARGIN);
+                ctx.lineTo(MARGIN + i * CELL_SIZE, MARGIN + (BOARD_SIZE - 1) * CELL_SIZE);
+            }
+            ctx.stroke();
+
+            // 星位
+            const stars = [3, 9, 6];
+            ctx.fillStyle = "#000";
+            stars.forEach(r => {
+                stars.forEach(c => {
+                    ctx.beginPath();
+                    ctx.arc(MARGIN + c * CELL_SIZE, MARGIN + r * CELL_SIZE, 3, 0, 2 * Math.PI);
+                    ctx.fill();
+                });
+            });
+
+            // 棋子
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] !== 0) {
+                        drawStone(r, c, board[r][c]);
+                    }
+                }
+            }
+
+            // 最後一手的紅色標記
+            if (lastMove) {
+                const x = MARGIN + lastMove.c * CELL_SIZE;
+                const y = MARGIN + lastMove.r * CELL_SIZE;
+                ctx.fillStyle = "red";
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+            }
+
+            // 建議框框
+            if (hintMove) {
+                const x = MARGIN + hintMove.c * CELL_SIZE;
+                const y = MARGIN + hintMove.r * CELL_SIZE;
+                ctx.strokeStyle = "#e74c3c";
+                ctx.lineWidth = 3;
+                ctx.strokeRect(x - 12, y - 12, 24, 24);
+                hintMove = null; // 畫一次就消失，避免干擾
+            }
+        }
+
+        function drawStone(r, c, color) {
+            const x = MARGIN + c * CELL_SIZE;
+            const y = MARGIN + r * CELL_SIZE;
+            ctx.beginPath();
+            ctx.arc(x, y, CELL_SIZE / 2 - 2, 0, 2 * Math.PI);
+            
+            // 簡單立體感
+            const grad = ctx.createRadialGradient(x-5, y-5, 2, x, y, 15);
+            if (color === 1) {
+                grad.addColorStop(0, "#555");
+                grad.addColorStop(1, "#000");
+            } else {
+                grad.addColorStop(0, "#fff");
+                grad.addColorStop(1, "#ddd");
+            }
+            ctx.fillStyle = grad;
+            ctx.fill();
+            
+            if (color === 2) {
+                ctx.strokeStyle = "#ccc"; 
+                ctx.lineWidth = 1;
+                ctx.stroke();
+            }
+        }
+
+        // --- 核心規則 (氣與提子) ---
+        function isValid(r, c) {
+            return r >= 0 && r < BOARD_SIZE && c >= 0 && c < BOARD_SIZE;
+        }
+
+        function countLiberties(boardState, r, c) {
+            const color = boardState[r][c];
+            if (color === 0) return 0;
+            const stack = [[r, c]];
+            const visited = new Set([`${r},${c}`]);
+            let liberties = 0;
+            const countedLiberties = new Set();
+
+            while (stack.length) {
+                const [cr, cc] = stack.pop();
+                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
+                    const nr = cr + dr, nc = cc + dc;
+                    if (isValid(nr, nc)) {
+                        if (boardState[nr][nc] === 0) {
+                            if (!countedLiberties.has(`${nr},${nc}`)) {
+                                liberties++;
+                                countedLiberties.add(`${nr},${nc}`);
+                            }
+                        } else if (boardState[nr][nc] === color && !visited.has(`${nr},${nc}`)) {
+                            visited.add(`${nr},${nc}`);
+                            stack.push([nr, nc]);
+                        }
+                    }
+                });
+            }
+            return liberties;
+        }
+
+        function getGroup(boardState, r, c) {
+            const color = boardState[r][c];
+            let group = [];
+            let stack = [[r, c]];
+            let visited = new Set([`${r},${c}`]);
+            while(stack.length) {
+                let [cr, cc] = stack.pop();
+                group.push([cr, cc]);
+                [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
+                    let nr = cr+dr, nc = cc+dc;
+                    if(isValid(nr, nc) && boardState[nr][nc] === color && !visited.has(`${nr},${nc}`)) {
+                        visited.add(`${nr},${nc}`);
+                        stack.push([nr, nc]);
+                    }
+                });
+            }
+            return group;
+        }
+
+        function tryMove(r, c, col) {
+            // 這裡模擬落子，檢查是否合法，並回傳結果
+            if (board[r][c] !== 0) return { success: false };
+
+            let tempBoard = board.map(row => [...row]);
+            tempBoard[r][c] = col;
+            
+            let capturedStones = [];
+            const opponent = 3 - col;
+
+            // 檢查周圍對手氣
+            [[0,1],[0,-1],[1,0],[-1,0]].forEach(([dr, dc]) => {
+                const nr = r + dr, nc = c + dc;
+                if (isValid(nr, nc) && tempBoard[nr][nc] === opponent) {
+                    if (countLiberties(tempBoard, nr, nc) === 0) {
+                        const group = getGroup(tempBoard, nr, nc);
+                        group.forEach(([gr, gc]) => {
+                            tempBoard[gr][gc] = 0;
+                            capturedStones.push([gr, gc]);
+                        });
+                    }
+                }
+            });
+
+            // 禁止自殺 (除非剛好提子)
+            if (capturedStones.length === 0 && countLiberties(tempBoard, r, c) === 0) {
+                return { success: false, msg: "自殺手" };
+            }
+
+            return { success: true, newBoard: tempBoard, captured: capturedStones.length };
+        }
+
+        // --- 點擊事件 ---
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            const c = Math.round((x - MARGIN) / CELL_SIZE);
+            const r = Math.round((y - MARGIN) / CELL_SIZE);
+
+            if (isValid(r, c)) {
+                const result = tryMove(r, c, currentPlayer);
+                if (result.success) {
+                    board = result.newBoard;
+                    lastMove = {r, c};
+                    // 播放落子音效感 (可選)
+                    
+                    // 換人
+                    currentPlayer = 3 - currentPlayer;
+                    updateStatus();
+                    drawBoard();
+                } else {
+                    console.log("無效的一手:", result.msg);
+                }
+            }
+        });
+
+        // --- AI 建議邏輯 ---
+        function showHint() {
+            const bestMove = getBestMove(currentPlayer);
+            if (bestMove) {
+                hintMove = bestMove;
+                drawBoard();
+                alert(`軍師建議 ${currentPlayer===1?"黑":"白"}棋：\n下在第 ${bestMove.r+1} 列，第 ${bestMove.c+1} 行`);
+            }
+        }
+
+        function getBestMove(color) {
+            let bestScore = -99999;
+            let bestMoves = [];
+
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    if (board[r][c] === 0) {
+                        // 簡單評估函數
+                        let score = 0;
+                        const result = tryMove(r, c, color);
+                        
+                        if (result.success) {
+                            // 1. 提子加分
+                            score += result.captured * 100;
+                            
+                            // 2. 自己的氣 (避免被叫吃)
+                            const libs = countLiberties(result.newBoard, r, c);
+                            if (libs === 1) score -= 50; 
+                            score += libs * 5;
+
+                            // 3. 佔據中心/金角銀邊
+                            const dist = Math.abs(r - 6) + Math.abs(c - 6);
+                            score += (10 - dist);
+                            
+                            // 4. 隨機擾動
+                            score += Math.random() * 5;
+
+                            if (score > bestScore) {
+                                bestScore = score;
+                                bestMoves = [{r, c}];
+                            } else if (Math.abs(score - bestScore) < 2) {
+                                bestMoves.push({r, c});
+                            }
+                        }
+                    }
+                }
+            }
+            if (bestMoves.length > 0) return bestMoves[Math.floor(Math.random() * bestMoves.length)];
+            return null;
+        }
+
+        // 啟動
+        initBoard();
+
+    </script>
+</body>
+</html>
