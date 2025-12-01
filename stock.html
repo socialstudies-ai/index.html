@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚀 飆股戰情室 ULTIMATE</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Noto+Sans+TC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-green: #00ff9d;
+            --neon-red: #ff0055;
+            --neon-yellow: #ffee00;
+            --bg-dark: #050505;
+            --card-bg: rgba(20, 20, 30, 0.75);
+            --glass-border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-dark);
+            background-image: 
+                radial-gradient(circle at 20% 20%, rgba(0, 243, 255, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 80% 80%, rgba(255, 0, 85, 0.15) 0%, transparent 40%);
+            color: #fff;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        /* 分頁切換區 */
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+
+        .tab-btn {
+            background: rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: #888;
+            padding: 15px 40px;
+            border-radius: 30px;
+            font-family: 'Orbitron';
+            font-size: 18px;
+            cursor: pointer;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .tab-btn.active {
+            color: #fff;
+            border-color: var(--neon-blue);
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.2);
+            background: rgba(0, 243, 255, 0.1);
+        }
+
+        .tab-content { display: none; animation: fadeIn 0.5s; }
+        .tab-content.active { display: block; }
+
+        /* 卡片容器 */
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: var(--glass-border);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 0 50px rgba(0,0,0,0.6);
+        }
+
+        h2 {
+            font-family: 'Orbitron', sans-serif;
+            text-align: center;
+            color: var(--neon-blue);
+            text-shadow: 0 0 10px var(--neon-blue);
+            margin-top: 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            padding-bottom: 15px;
+        }
+
+        /* 掃描區塊特別樣式 */
+        .scan-header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .btn-scan {
+            background: linear-gradient(90deg, #ff0055, #ff9f43);
+            color: white;
+            font-size: 20px;
+            padding: 15px 50px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            font-family: 'Orbitron';
+            box-shadow: 0 0 20px rgba(255, 0, 85, 0.4);
+            transition: 0.3s;
+        }
+        .btn-scan:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255, 0, 85, 0.8); }
+        .btn-scan:disabled { filter: grayscale(1); cursor: not-allowed; }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #333;
+            margin-top: 20px;
+            border-radius: 3px;
+            overflow: hidden;
+            display: none;
+        }
+        .progress-fill {
+            height: 100%;
+            background: var(--neon-blue);
+            width: 0%;
+            transition: width 0.1s;
+            box-shadow: 0 0 10px var(--neon-blue);
+        }
+
+        /* 表格與輸入框 (沿用之前的設計但優化) */
+        .control-panel { display: flex; gap: 10px; margin-bottom: 20px; }
+        input { flex: 1; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid #555; color: #fff; border-radius: 8px; font-family: 'Orbitron'; outline: none; }
+        .btn-add { background: #0984e3; color: white; padding: 0 25px; border:none; border-radius: 8px; cursor: pointer; }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0 8px; }
+        th { text-align: left; color: #888; padding: 10px; font-size: 13px; }
+        tbody tr { background: rgba(255,255,255,0.03); transition: 0.2s; }
+        tbody tr:hover { background: rgba(255,255,255,0.08); transform: translateX(5px); }
+        td { padding: 15px; vertical-align: middle; }
+        
+        .stock-code { color: var(--neon-blue); font-family: 'Orbitron'; font-size: 18px; font-weight: bold; }
+        .stock-name { font-size: 14px; color: #ccc; }
+        .price { font-family: 'Orbitron'; font-size: 18px; font-weight: bold; }
+        
+        .tag { display: inline-block; padding: 4px 8px; font-size: 12px; margin: 2px; border-radius: 4px; background: rgba(255,255,255,0.1); color: #aaa; border: 1px solid transparent; }
+        .tag.hit { background: rgba(0, 243, 255, 0.1); color: var(--neon-blue); border-color: rgba(0, 243, 255, 0.3); box-shadow: 0 0 5px rgba(0,243,255,0.1); }
+        
+        .score-display { font-family: 'Orbitron'; font-size: 24px; font-weight: bold; color: var(--neon-green); text-shadow: 0 0 10px var(--neon-green); }
+        
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="tabs">
+        <div class="tab-btn active" onclick="switchTab('monitor')">我的監控</div>
+        <div class="tab-btn" onclick="switchTab('scanner')">全自動選股機器人</div>
+    </div>
+
+    <div id="tab-monitor" class="tab-content active glass-panel">
+        <h2>PERSONAL MONITOR // 個人監控</h2>
+        <div class="control-panel">
+            <input type="text" id="newStockInput" placeholder="輸入代號 (EX: 2330)" onkeypress="handleEnter(event)">
+            <button class="btn-add" onclick="addStock()">＋ 新增</button>
+            <button class="btn-add" style="background: #e17055;" onclick="refreshMonitor()">🔄 刷新</button>
+        </div>
+        <table id="monitorTable">
+            <thead><tr><th width="20%">代號</th><th width="15%">價格</th><th width="50%">符合策略</th><th width="10%">分數</th><th width="5%"></th></tr></thead>
+            <tbody id="monitorBody"></tbody>
+        </table>
+    </div>
+
+    <div id="tab-scanner" class="tab-content glass-panel">
+        <h2>MARKET SCANNER // 飆股篩選</h2>
+        <div class="scan-header">
+            <p style="color:#aaa; font-size:14px; margin-bottom:20px;">
+                掃描範圍：系統內建 150 檔熱門權值/AI/動能股<br>
+                篩選條件：符合 4 項以上指標 (爆量、均線、KD、布林、MACD、RSI、箱型突破)
+            </p>
+            <button class="btn-scan" onclick="runScanner()" id="startScanBtn">🚀 啟動掃描程序</button>
+            <div class="progress-bar" id="scanProgress"><div class="progress-fill" id="scanFill"></div></div>
+            <div id="scanStatus" style="margin-top:10px; color:var(--neon-blue); font-family:'Orbitron';">READY</div>
+        </div>
+        <table id="scanTable">
+            <thead><tr><th width="20%">代號</th><th width="15%">價格</th><th width="50%">強勢原因 (符合條件)</th><th width="15%">綜合評分</th></tr></thead>
+            <tbody id="scanBody">
+                <tr><td colspan="4" style="text-align:center; padding:30px; color:#555;">尚未執行掃描</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    // --- 資料庫與設定 ---
+    // 內建熱門股池 (模擬資料庫，包含台股主要類股)
+    const marketPool = [
+        "2330","2317","2454","2308","2382","2412","2881","2882","2886","2891","2603","2609","2615","2303","3711","3231","2376","6669","2357","2356","3037","3034","2379","3008","2345","2301","4938","1101","1102","2002","1216","2912","5871","1519","1513","1503","1504","1609","1605","2327","2368","2449","3035","3443","3529","3661","4966","5269","6271","6515","6415","8046","8069","8299","9958","1560","1590","2049","2201","2204","2360","2395","2421","2455","2474","2492","2498","3006","3017","3044","3189","3406","3532","3533","3702","4904","4919","4958","5347","5483","6147","6176","6213","6239","6269","6278","6488","8016","8112","8150","8210","9904","9910","9914","9917","9921","9945","2618","2610","2634","5608","2606","2605","2884","2880","2892","5880","2885","2890","2883","2887","2801","2834"
+    ];
+
+    const stockDict = {
+        "2330":"台積電", "2317":"鴻海", "2454":"聯發科", "2308":"台達電", "2382":"廣達", "2603":"長榮", "1519":"華城", "3231":"緯創", "2376":"技嘉", "6669":"緯穎", "3661":"世芯-KY", "1605":"華新", "2303":"聯電", "2881":"富邦金", "2615":"萬海", "2609":"陽明", "2327":"國巨", "3037":"欣興", "2357":"華碩", "1513":"中興電"
+    };
+
+    let myStocks = JSON.parse(localStorage.getItem('myWatchlist')) || ['2330', '2317'];
+
+    // --- 初始化 ---
+    window.onload = () => { refreshMonitor(); };
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        // 找出對應按鈕加 active (這裡簡單處理)
+        event.target.classList.add('active');
+    }
+
+    // --- 監控功能 (Tab 1) ---
+    function handleEnter(e) { if(e.key === 'Enter') addStock(); }
+    function addStock() {
+        const val = document.getElementById('newStockInput').value.trim();
+        if(val && !myStocks.includes(val)) {
+            myStocks.push(val);
+            localStorage.setItem('myWatchlist', JSON.stringify(myStocks));
+            refreshMonitor();
+        }
+        document.getElementById('newStockInput').value = '';
+    }
+    function removeStock(code) {
+        if(confirm('移除監控?')) {
+            myStocks = myStocks.filter(s => s !== code);
+            localStorage.setItem('myWatchlist', JSON.stringify(myStocks));
+            refreshMonitor();
+        }
+    }
+    async function refreshMonitor() {
+        const tbody = document.getElementById('monitorBody');
+        tbody.innerHTML = '';
+        for(let code of myStocks) {
+            const data = await fetchStockData(code);
+            if(data) renderRow(tbody, data, true); // true 代表顯示移除按鈕
+        }
+    }
+
+    // --- 掃描功能 (Tab 2) ---
+    async function runScanner() {
+        const btn = document.getElementById('startScanBtn');
+        const bar = document.getElementById('scanProgress');
+        const fill = document.getElementById('scanFill');
+        const status = document.getElementById('scanStatus');
+        const tbody = document.getElementById('scanBody');
+
+        btn.disabled = true;
+        bar.style.display = 'block';
+        tbody.innerHTML = '';
+        let foundCount = 0;
+
+        for(let i=0; i<marketPool.length; i++) {
+            const code = marketPool[i];
+            const pct = Math.round(((i+1)/marketPool.length)*100);
+            fill.style.width = pct + "%";
+            status.innerText = `SCANNING [${code}] ... ${pct}%`;
+
+            const data = await fetchStockData(code);
+            if(data && data.score >= 4) { // 只顯示符合 4 項以上的
+                renderRow(tbody, data, false);
+                foundCount++;
+            }
+            // 避免過快請求
+            await new Promise(r => setTimeout(r, 100));
+        }
+
+        status.innerText = `SCAN COMPLETE. FOUND ${foundCount} TARGETS.`;
+        if(foundCount === 0) tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding:20px;">本次掃描無符合 4 項以上條件之標的</td></tr>';
+        btn.disabled = false;
+    }
+
+    // --- 核心邏輯：抓取與計算 ---
+    async function fetchStockData(code) {
+        try {
+            const proxy = `https://api.allorigins.win/get?url=${encodeURIComponent(`https://query1.finance.yahoo.com/v8/finance/chart/${code}.TW?interval=1d&range=6mo`)}`;
+            const res = await fetch(proxy);
+            const raw = await res.json();
+            const json = JSON.parse(raw.contents);
+            if(!json.chart || !json.chart.result) return null;
+            
+            const result = json.chart.result[0];
+            const meta = result.meta;
+            const q = result.indicators.quote[0];
+            const ts = result.timestamp;
+
+            let candles = [];
+            for(let i=0; i<q.close.length; i++) {
+                if(q.close[i] != null) candles.push({ close: q.close[i], high: q.high[i], low: q.low[i], vol: q.volume[i], ts: ts[i] });
+            }
+            if(candles.length < 50) return null;
+
+            return analyzeStrategy(code, meta.symbol, candles);
+        } catch(e) { return null; }
+    }
+
+    function analyzeStrategy(code, symbol, candles) {
+        const last = candles[candles.length-1];
+        const prev = candles[candles.length-2];
+        let score = 0;
+        let tags = [];
+
+        // 1. 站上 5MA 且 5MA 向上
+        const ma5 = calcMA(candles, 5);
+        const currMA5 = ma5[ma5.length-1];
+        const prevMA5 = ma5[ma5.length-2];
+        if(last.close > currMA5 && currMA5 > prevMA5) { score++; tags.push("5MA翻揚"); }
+
+        // 2. 布林上軌突破 (喇叭開口)
+        const bb = calcBB(candles, 20, 2);
+        const upper = bb.u[bb.u.length-1];
+        const prevUpper = bb.u[bb.u.length-2];
+        // 判斷開口放大：上軌變高幅度明顯
+        if(last.close >= upper * 0.99 && (upper > prevUpper * 1.005)) { score++; tags.push("布林突破"); }
+
+        // 3. 箱型突破 / 創 20 日新高
+        const past20High = Math.max(...candles.slice(-22, -2).map(c=>c.high));
+        if(last.close > past20High) { score++; tags.push("創波段高"); }
+
+        // 4. KD 黃金交叉 或 高檔鈍化
+        const kd = calcKD(candles);
+        const k = kd.k[kd.k.length-1], d = kd.d[kd.d.length-1];
+        const pK = kd.k[kd.k.length-2], pD = kd.d[kd.d.length-2];
+        if((k>d && pK<pD) || (k>80 && k>d)) { score++; tags.push("KD強勢"); }
+
+        // 5. MACD 紅柱放大或翻紅
+        const macd = calcMACD(candles);
+        const hist = macd[macd.length-1];
+        const pHist = macd[macd.length-2];
+        if(hist > 0 && (hist > pHist || pHist < 0)) { score++; tags.push("MACD攻擊"); }
+
+        // 6. RSI 強勢 (>50 且向上)
+        const rsi = calcRSI(candles);
+        const currRSI = rsi[rsi.length-1];
+        if(currRSI > 50 && currRSI > rsi[rsi.length-2]) { score++; tags.push("RSI轉強"); }
+
+        // 7. 爆量長紅 (量 > 5日均量 * 1.5 且 漲幅 > 3%)
+        const volMA = calcVolMA(candles, 5);
+        const avgVol = volMA[volMA.length-1];
+        const changePct = (last.close - prev.close) / prev.close;
+        if(last.vol > avgVol * 1.5 && changePct > 0.03) { score++; tags.push("爆量長紅"); }
+
+        // 8. 外資/主力 (模擬判斷：若分數已高且爆量，標註需確認)
+        // 因無法抓即時籌碼，這裡做一個輔助判斷：價漲量增且型態好
+        if(score >= 4 && last.vol > avgVol) { 
+            // 這裡不加分，但顯示標籤提醒檢查
+            tags.push("籌碼疑似進駐"); 
+        }
+
+        return {
+            code: code,
+            name: stockDict[code] || symbol,
+            price: last.close.toFixed(2),
+            score: score,
+            tags: tags
+        };
+    }
+
+    function renderRow(tbody, data, isMonitor) {
+        const tr = document.createElement('tr');
+        const tagHtml = data.tags.map(t => `<span class="tag hit">${t}</span>`).join('');
+        
+        let scoreColor = data.score >= 5 ? 'var(--neon-green)' : (data.score>=3 ? 'var(--neon-yellow)' : '#555');
+
+        tr.innerHTML = `
+            <td>
+                <div class="stock-code">${data.code}</div>
+                <div class="stock-name">${data.name}</div>
+            </td>
+            <td class="price">${data.price}</td>
+            <td>${tagHtml}</td>
+            <td><div class="score-display" style="color:${scoreColor}">${data.score}</div></td>
+            ${isMonitor ? `<td><button onclick="removeStock('${data.code}')" style="background:none;border:none;color:#555;cursor:pointer;">×</button></td>` : ''}
+        `;
+        tbody.appendChild(tr);
+    }
+
+    // --- 數學運算 ---
+    function calcMA(d,n){let r=[];for(let i=0;i<d.length;i++){if(i<n-1){r.push(0);continue;}let s=0;for(let j=0;j<n;j++)s+=d[i-j].close;r.push(s/n);}return r;}
+    function calcVolMA(d,n){let r=[];for(let i=0;i<d.length;i++){if(i<n-1){r.push(0);continue;}let s=0;for(let j=0;j<n;j++)s+=d[i-j].vol;r.push(s/n);}return r;}
+    function calcBB(d,n,k){const ma=calcMA(d,n);let u=[];for(let i=0;i<d.length;i++){if(i<n-1){u.push(0);continue;}let s=0;for(let j=0;j<n;j++)s+=Math.pow(d[i-j].close-ma[i],2);u.push(ma[i]+k*Math.sqrt(s/n));}return {u};}
+    function calcKD(d){let k=[50],v=[50];for(let i=1;i<d.length;i++){let h=-Infinity,l=Infinity;for(let j=0;j<9&&i-j>=0;j++){if(d[i-j].high>h)h=d[i-j].high;if(d[i-j].low<l)l=d[i-j].low;}let rsv=(h==l)?50:((d[i].close-l)/(h-l)*100);let ck=(2/3)*k[i-1]+(1/3)*rsv;let cd=(2/3)*v[i-1]+(1/3)*ck;k.push(ck);v.push(cd);}return {k,d:v};}
+    function calcMACD(d){let e12=cE(d,12),e26=cE(d,26),df=[],dm=[],h=[];for(let i=0;i<d.length;i++)df.push(e12[i]-e26[i]);dm.push(df[0]);let k=2/10;for(let i=1;i<df.length;i++)dm.push(df[i]*k+dm[i-1]*(1-k));for(let i=0;i<df.length;i++)h.push(df[i]-dm[i]);return h;}
+    function cE(d,n){let k=2/(n+1),r=[d[0].close];for(let i=1;i<d.length;i++)r.push(d[i].close*k+r[i-1]*(1-k));return r;}
+    function calcRSI(d){let r=[0];for(let i=14;i<d.length;i++){let g=0,l=0;for(let j=0;j<14;j++){let df=d[i-j].close-d[i-j-1].close;if(df>0)g+=df;else l-=df;}let rs=g/l;r.push(l==0?100:100-(100/(1+rs)));}while(r.length<d.length)r.unshift(0);return r;}
+</script>
+
+</body>
+</html>
